@@ -7,6 +7,7 @@ import subprocess
 import threading
 import os
 import psutil
+from PIL import Image, ImageTk
 
 # Global variables
 process = None
@@ -22,11 +23,15 @@ def Boot_avds():
         return
 
     # Command to execute
-    command = r'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd android_29 -writable-system'
+    if fast_boot_var == 1:
+        command = r'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd android_29 -writable-system'
+    else:
+        command = r'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd android_29 -writable-system -no-snapshot-load'
 
     # Create a new window to display the output
+    global output_window
     output_window = Toplevel(root)
-    output_window.title("Command Output")
+    output_window.title("Logs")
     
     # Text widget to display the output
     output_text = Text(output_window, wrap=tk.WORD, width=60, height=20)
@@ -40,7 +45,7 @@ def Boot_avds():
 
     # Update the flag
     process_started = True
-    print("Process started:", process_started)
+    #print("Process started:", process_started)
 
     emulator_process = psutil.Process(process.pid)
 
@@ -58,22 +63,30 @@ def update_output(line):
     output_text.see(tk.END)  # Scroll to the end
 
 def kill_process_tree(pid):
-    parent = psutil.Process(pid)
-    for child in parent.children(recursive=True):
-        child.terminate()
-    psutil.wait_procs(parent.children(), timeout=5)
-    parent.terminate()
-    parent.wait(5)
+    try:
+        parent = psutil.Process(pid)
+        for child in parent.children(recursive=True):
+            child.terminate()
+        psutil.wait_procs(parent.children(), timeout=5)
+        parent.terminate()
+        parent.wait(5)
+    except psutil.NoSuchProcess:
+        # Process has already terminated, nothing to do
+        pass
+
 
 def stop_command():
     global emulator_process
     if emulator_process:
         kill_process_tree(emulator_process.pid)
-        print("Emulator process terminated successfully.")
+        #print("Emulator process terminated successfully.")
         emulator_process = None
+        if output_window:
+            output_window.destroy()
+
     else:
-        print("Emulator process not running.")
-def things(x):
+        tkmsgbox.showerror("Error", "Avd Is not running!!!")
+def avd_installed_list(x):
     pass
 
 def read_values_for_apis(filename):
@@ -141,9 +154,15 @@ def installation():
     # Install Button
     tb.Button(installation_window, text="Install", bootstyle="danger", command=Install_avds).pack(pady=20)
 
+def on_fast_boot_var_change(*args):
+    if fast_boot_var.get() == 0:
+        fast_boot_check.config(text="Cold Boot")
+    else:
+        fast_boot_check.config(text="Fast Boot")
+
 root = tb.Window(themename="darkly")
-root.title("AndroLab")
-root.geometry('1000x700')
+root.title("Kal-Droid")
+root.geometry('900x700')
 root.resizable(False, False)
 
 # Creating Tabs
@@ -158,14 +177,21 @@ notebook.add(tab2, text="Install")
 notebook.add(tab3, text="Help")
 notebook.pack(expand=True, fill="both")
 
+background_img = ImageTk.PhotoImage(Image.open("bg.png")) 
+
+background_label = Label(tab1, image=background_img)
+background_label.place(relwidth=1, relheight=1)
+
 
 # Tab 1 ----------->
 
+## Bg Img
+background_img = ImageTk.PhotoImage(Image.open("bg.png")) 
+background_label = Label(tab1, image=background_img)
+background_label.place(relwidth=1, relheight=1)
+
 ## Label 1
 tb.Label(tab1, text="Kal-Droid", bootstyle="success", font=("Helvetica", 28)).pack(pady=10)
-
-## Label 2
-#tb.Label(tab1, text="Please Slect Your Avd To Boot!!").pack(pady=10)
 
 # Menu for selecting Avds
 avd_menu = tb.Menubutton(tab1, bootstyle="warning", text="Select Avd",width=30)
@@ -175,7 +201,7 @@ inside_menu = tb.Menu(avd_menu)
 
 item_var = StringVar()
 for x in ['android_29', 'secondary', 'danger']:
-    inside_menu.add_radiobutton(label=x, variable=item_var, command=lambda x=x: things(x))
+    inside_menu.add_radiobutton(label=x, variable=item_var, command=lambda x=x: avd_installed_list(x))
 
 avd_menu['menu'] = inside_menu
 
@@ -192,11 +218,25 @@ delete_buttoon = tb.Button(tab1, text="Delete", bootstyle="danger", width=10)
 delete_buttoon.pack(side="left", padx=(10, 40), pady=(0, 450))
 
 # fast Booting Check
+global fast_boot_var
 fast_boot_var = IntVar(value=1)
+fast_boot_var.trace_add("write", on_fast_boot_var_change)
 fast_boot_check = tb.Checkbutton(tab1, text="Fast Boot", bootstyle="info, round-toggle", variable=fast_boot_var, onvalue=1, offvalue=0,)
-fast_boot_check.pack(side="left", padx=(10, 40), pady=(0, 450))
+fast_boot_check.pack()
+fast_boot_check.place(x=450,y=190)
+
+global show_logs_var
+show_logs_var = IntVar(value=0)
+show_logs_check = tb.Checkbutton(tab1, text="Show Logs", bootstyle="info, round-toggle", variable=fast_boot_var, onvalue=1, offvalue=0,)
+show_logs_check.pack()
+show_logs_check.place(x=300,y=190)
 
 # Tab 2 ----------->
+
+# Bg Img
+background_img2 = ImageTk.PhotoImage(Image.open("bg2.png")) 
+background_label2 = Label(tab2, image=background_img2)
+background_label2.place(relwidth=1, relheight=1)
 
 ## Install Button
 tb.Button(tab2, text="Install", bootstyle="success", command=installation).pack(pady=20)
