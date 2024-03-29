@@ -5,9 +5,11 @@ from tkinter import messagebox as tkmsgbox
 import ttkbootstrap as tb
 import subprocess
 import threading
-import os
+import sys
 import psutil
 from PIL import Image, ImageTk
+import pexpect
+import wexpect
 
 # Global variables
 process = None
@@ -18,44 +20,58 @@ emulator_process = None
 def Boot_avds():
     global process, output_text, process_started, emulator_process
 
+    if process_started:
+        tkmsgbox.showerror("Error", "AVD is already running!")
+        return
+
     if not item_var.get():
         tkmsgbox.showerror("Error", "Please select an Android Model!!!")
         return
 
     # Command to execute
-    if fast_boot_var == 1:
+    if fast_boot_var.get() == 1:
         command = r'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd android_29 -writable-system'
     else:
         command = r'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd android_29 -writable-system -no-snapshot-load'
+
+    # Start the process
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # Update the flag
+    process_started = True
+    print("Process started:", process_started)
+
+    emulator_process = psutil.Process(process.pid)
+
+    # Check if toggle button is checked
+    #if show_logs_var.get() == 1 | show_logs_var.get() == 0:
 
     # Create a new window to display the output
     global output_window
     output_window = Toplevel(root)
     output_window.title("Logs")
-    
+
+    if show_logs_var.get() == 0:
+        output_window.withdraw()
+        
     # Text widget to display the output
+    global output_text
     output_text = Text(output_window, wrap=tk.WORD, width=60, height=20)
     output_text.pack(padx=10, pady=10)
 
-    # Start the process
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    # Start a thread to continuously read the output
+        # Start a thread to continuously read the output
     threading.Thread(target=read_output).start()
-
-    # Update the flag
-    process_started = True
-    #print("Process started:", process_started)
-
-    emulator_process = psutil.Process(process.pid)
+ 
 
 def read_output():
     # Continuously read the output and update the text widget
+    global process_started
     while True:
         line = process.stdout.readline()
         if not line:
             break
         update_output(line)
+    process_started = False
 
 def update_output(line):
     # Update the text widget with the new output
@@ -77,10 +93,13 @@ def kill_process_tree(pid):
 
 def stop_command():
     global emulator_process
+    global process_started
+    global output_window
     if emulator_process:
         kill_process_tree(emulator_process.pid)
         #print("Emulator process terminated successfully.")
         emulator_process = None
+        process_started = False
         if output_window:
             output_window.destroy()
 
@@ -88,6 +107,31 @@ def stop_command():
         tkmsgbox.showerror("Error", "Avd Is not running!!!")
 def avd_installed_list(x):
     pass
+
+def delete_avd():
+
+    if not item_var.get():
+        tkmsgbox.showerror("Error", "Please select an Android Model!!!")
+        return
+
+    confirmed = tk.messagebox.askyesno("Confirmation", "Are you sure you want to delete the AVD?")
+    if confirmed:
+        avd_name = "android_27"
+        avdmanager_path = r'C:\Users\subho\\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat'
+        try:
+            result = subprocess.run([avdmanager_path, "-v", "delete", "avd", "-n", avd_name], capture_output=True, text=True)
+            if result.returncode == 0:
+                tk.messagebox.showinfo("Success", f"The AVD {avd_name} has been successfully deleted.")
+            else:
+                error_message = result.stderr.strip() if result.stderr else "Unknown error"
+                tk.messagebox.showerror("Error", f"An error occurred: {error_message}. Please make sure that avd is not running!!")
+        except FileNotFoundError:
+            tk.messagebox.showerror("Error", "avdmanager command not found. Make sure Android SDK is installed and added to the system PATH.")
+        except Exception as e:
+            tk.messagebox.showerror("Error", f"An unexpected error occurred: {str(e)} . Please make sure avd is not running!!")
+
+    else:
+        pass 
 
 def read_values_for_apis(filename):
     with open(filename, 'r') as file:
@@ -99,30 +143,112 @@ def read_values_for_models(filename):
         name = content.split('---------\n')
     return name
 
+def run_install_command(output_text):
+    # Command to install system image
+    command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat --install "system-images;android-29;google_apis_playstore;x86_64"'
+    try:
+        # Start the process
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        # Read and update the output in real-time
+        for line in process.stdout:
+            output_text.insert(tk.END, line.strip() + '\n')
+            output_text.see(tk.END)  # Scroll to the end
+
+        # Wait for the process to finish and get the return code
+        return_code = process.wait()
+
+        # Print the return code
+        print("Return Code:", return_code)
+
+        # If the return code is 0, display a success message and terminate the process
+        if return_code == 0:
+            tkmsgbox.showinfo("Success", "API downloaded successfully! Now creating AVD...")
+            create_avd()
+            process.terminate()  # Terminate the process
+
+        else:
+            # If the return code is non-zero, display an error message
+            tkmsgbox.showerror("Error", f"Command execution failed with return code {return_code}")
+
+    except Exception as e:
+        # Display any exceptions as error messages
+        tkmsgbox.showerror("Error", str(e))
+
 def Install_avds():
     if not first_combo.get() or not second_combo.get():
         tkmsgbox.showerror("Error", "Please select an Android API And Android Model!!!")
         return
     
-    os.system('cls')
-    process = subprocess.Popen([r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat', '--list'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = process.communicate()
+    output_text2 = tk.Text(tab2, wrap=tk.WORD)
+    output_text2.pack(fill=tk.BOTH, expand=True)
 
-    global sdk_frame
-    sdk_frame = ttk.Frame(tab2)
-    sdk_frame.pack(fill='both', expand=True, padx=10, pady=10)
+    # Create a thread to execute the command
+    install_thread = threading.Thread(target=run_install_command, args=(output_text2,))
+    install_thread.start()
 
-    # Display the output in a Text widget
-    output_text = tk.Text(sdk_frame, wrap='word', state='disabled')
-    output_text.pack(fill='both', expand=True, padx=10, pady=10)
+def avd_exists(avd_name):
+    try:
+        # Check if the AVD exists by listing all AVDs
+        list_command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat list avd'
+        result = subprocess.run(list_command, shell=True, capture_output=True, text=True)
+        if avd_name in result.stdout:
+            return True
+        else:
+            return False
+    except Exception as e:
+        # Display any exceptions as error messages
+        tk.messagebox.showerror("Error", f"An unexpected error occurred while checking AVD existence: {str(e)}")
+        return False
 
-    output_text.config(state='normal')
-    output_text.delete('1.0', tk.END)  # Clear previous output
-    output_text.insert(tk.END, output.decode('utf-8'))  # Display the output
-    output_text.config(state='normal')
 
-    installation_window.destroy()
-    
+def run_create_avd_thread(avd_name, output_text):
+    command = rf'echo no | C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat --verbose create avd --name "android_303" --package "system-images;android-29;google_apis_playstore;x86_64"'
+
+    try:
+        # Start the process
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        # Read and update the output in real-time
+        for line in process.stdout:
+            output_text.insert(tk.END, line.strip() + '\n')
+            output_text.see(tk.END)  # Scroll to the end
+
+        # Wait for the process to finish and get the return code
+        return_code = process.wait()
+
+        # Print the return code
+        print("Return Code:", return_code)
+
+        # If the return code is 0, display a success message and terminate the process
+        if return_code == 0:
+            tkmsgbox.showinfo("Success", "AVD created successfully! Now Boot the AVD...")
+            create_avd()
+            process.terminate()  # Terminate the process
+
+        else:
+            # If the return code is non-zero, display an error message
+            output_text.insert(tk.END, f"Error occurred: {process.stdout.read()}\n")
+            tkmsgbox.showerror("Error", f"Command execution failed with return code {return_code}")
+
+    except Exception as e:
+        # Display any exceptions as error messages
+        tkmsgbox.showerror("Error", str(e))
+
+
+
+def create_avd():
+
+    avd_name = "android_303"
+    output_text3 = tk.Text(tab2, wrap=tk.WORD)
+    output_text3.pack(fill=tk.BOTH, expand=True)
+
+    # Check if the AVD already exists
+    if avd_exists(avd_name):
+        tkmsgbox.showerror("Error", f"AVD {avd_name} already exists.")
+        return
+
+    # Create a thread to execute the command
+    create_avd_thread = threading.Thread(target=run_create_avd_thread, args=(avd_name, output_text3))
+    create_avd_thread.start()
 
 def installation():
     global installation_window
@@ -214,7 +340,7 @@ stop_buttoon = tb.Button(tab1, text="Stop", bootstyle="danger", width=10, comman
 stop_buttoon.pack(side="left", padx=(10, 40), pady=(0, 450))
 
 # Delete Button
-delete_buttoon = tb.Button(tab1, text="Delete", bootstyle="danger", width=10)
+delete_buttoon = tb.Button(tab1, text="Delete", bootstyle="danger", width=10, command=delete_avd)
 delete_buttoon.pack(side="left", padx=(10, 40), pady=(0, 450))
 
 # fast Booting Check
@@ -226,8 +352,8 @@ fast_boot_check.pack()
 fast_boot_check.place(x=450,y=190)
 
 global show_logs_var
-show_logs_var = IntVar(value=0)
-show_logs_check = tb.Checkbutton(tab1, text="Show Logs", bootstyle="info, round-toggle", variable=fast_boot_var, onvalue=1, offvalue=0,)
+show_logs_var = IntVar(value=1)
+show_logs_check = tb.Checkbutton(tab1, text="Show Logs", bootstyle="info, round-toggle", variable=show_logs_var, onvalue=1, offvalue=0,)
 show_logs_check.pack()
 show_logs_check.place(x=300,y=190)
 
