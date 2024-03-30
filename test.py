@@ -4,35 +4,169 @@ from tkinter import ttk
 from tkinter import messagebox as tkmsgbox
 import ttkbootstrap as tb
 import subprocess
+import re
 import threading
-import sys
 import psutil
 from PIL import Image, ImageTk
-import pexpect
-import wexpect
+
 
 # Global variables
 process = None
 output_text = None
 process_started = False
 emulator_process = None
+installation_window = None
+avd_name = None
+avd_name_entry = None
+
+def delete_avd():
+    if not item_var_menu.get():
+        tkmsgbox.showerror("Error", "Please select an Android Model!!!")
+        return
+
+    confirmed = tkmsgbox.askyesno("Confirmation", "Are you sure you want to delete the AVD?")
+    if confirmed:
+        avd_name = item_var_menu.get()
+        avdmanager_path = r'C:\Users\subho\\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat'
+        try:
+            result = subprocess.run([avdmanager_path, "-v", "delete", "avd", "-n", avd_name], capture_output=True, text=True)
+            if result.returncode == 0:
+                tkmsgbox.showinfo("Success", f"The AVD {avd_name} has been successfully deleted.")
+                save_avd_names_to_file('android_name_list.txt')
+                update_avd_menu()
+            else:
+                error_message = result.stderr.strip() if result.stderr else "Unknown error"
+                tkmsgbox.showerror("Error", f"An error occurred: {error_message}. Please make sure that avd is not running!!")
+        except FileNotFoundError:
+            tkmsgbox.showerror("Error", "avdmanager command not found. Make sure Android SDK is installed and added to the system PATH.")
+        except Exception as e:
+            tkmsgbox.showerror("Error", f"An unexpected error occurred: {str(e)} . Please make sure avd is not running!!")
+
+def Install_avds():
+
+    avd_name = avd_name_entry.get() 
+
+    if not item_var_api.get() or not avd_name_entry.get():
+        tkmsgbox.showerror("Error", "Please select an Android API And Android Model!!!")
+        return
+    
+    if avd_exists(avd_name):
+        tkmsgbox.showerror("Error", f"AVD {avd_name} already exists.")
+        installation_window.destroy()
+        return
+    
+    avd_name = avd_name_entry.get()  # Accessing avd_name_entry here
+
+    output_text2 = tk.Text(tab2, wrap=tk.WORD)
+    output_text2.pack(fill=tk.BOTH, expand=True)
+
+    # Create a thread to execute the command
+    install_thread = threading.Thread(target=run_install_command, args=(output_text2, avd_name))
+    install_thread.start()
+    installation_window.destroy()
+
+
+def run_install_command(output_text, avd_name):
+    # Command to install system image
+    and_api = item_var_api.get()
+    command = rf'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat --install "{and_api}"'
+    try:
+        # Start the process
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        # Read and update the output in real-time
+        for line in process.stdout:
+            output_text.insert(tk.END, line.strip() + '\n')
+            output_text.see(tk.END)  # Scroll to the end
+
+        # Wait for the process to finish and get the return code
+        return_code = process.wait()
+
+        # Print the return code
+        print("Return Code:", return_code)
+
+        # If the return code is 0, display a success message and terminate the process
+        if return_code == 0:
+            tkmsgbox.showinfo("Success", "API downloaded successfully! Now creating AVD...")
+            create_avd(avd_name)  # Call create_avd() after successful installation
+            process.terminate()
+            #installation_window.destroy()  # Terminate the process
+
+        else:
+            # If the return code is non-zero, display an error message
+            tkmsgbox.showerror("Error", f"Command execution failed with return code {return_code}")
+
+    except Exception as e:
+        # Display any exceptions as error messages
+        tkmsgbox.showerror("Error", str(e))
+
+
+def create_avd(avd_name):
+    output_text3 = tk.Text(tab2, wrap=tk.WORD)
+    output_text3.pack(fill=tk.BOTH, expand=True)
+
+    # Create a thread to execute the command
+    create_avd_thread = threading.Thread(target=run_create_avd_thread, args=(avd_name, output_text3))
+    create_avd_thread.start()
+
+
+def update_avd_menu():
+    # Clear the existing menu
+    inside_menu.delete(0, tk.END)
+
+    # Read AVD names from the updated file
+    with open('android_name_list.txt', 'r') as file:
+        avd_names = file.readlines()
+
+    avd_names = [name.strip() for name in avd_names]
+
+    for avd_name in avd_names:
+        inside_menu.add_radiobutton(label=avd_name, variable=item_var_menu, command=lambda avd_name=avd_name: avd_installed_list(avd_name))
+
+    avd_menu['menu'] = inside_menu
+
+def save_avd_names_to_file(filename):
+    command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat list avd'
+    try:
+        # Run the command and capture the output
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        # Check if the command executed successfully
+        if result.returncode == 0:
+            #print("Command output:")
+            #print(result.stdout)
+
+            # Extract AVD names using regular expression
+            avd_names = re.findall(r'Name: (\S+)', result.stdout)
+
+            # Write the AVD names to the file
+            with open(filename, 'w') as file:
+                for name in avd_names:
+                    file.write(name + '\n')
+            print(f"AVD names saved to '{filename}' successfully.")
+        else:
+            print("Error: Failed to retrieve AVD list.")
+            if result.stderr:
+                print("Error message:", result.stderr)
+    except Exception as e:
+        print("An error occurred:", str(e))
 
 def Boot_avds():
+    avd_to_boot = item_var_menu.get()
     global process, output_text, process_started, emulator_process
 
     if process_started:
         tkmsgbox.showerror("Error", "AVD is already running!")
         return
 
-    if not item_var.get():
+    if not item_var_menu.get():
         tkmsgbox.showerror("Error", "Please select an Android Model!!!")
         return
 
     # Command to execute
     if fast_boot_var.get() == 1:
-        command = r'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd android_29 -writable-system'
+        command = rf'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd {avd_to_boot} -writable-system'
     else:
-        command = r'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd android_29 -writable-system -no-snapshot-load'
+        command = rf'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd {avd_to_boot} -writable-system -no-snapshot-load'
 
     # Start the process
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -108,84 +242,11 @@ def stop_command():
 def avd_installed_list(x):
     pass
 
-def delete_avd():
-
-    if not item_var.get():
-        tkmsgbox.showerror("Error", "Please select an Android Model!!!")
-        return
-
-    confirmed = tk.messagebox.askyesno("Confirmation", "Are you sure you want to delete the AVD?")
-    if confirmed:
-        avd_name = "android_27"
-        avdmanager_path = r'C:\Users\subho\\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat'
-        try:
-            result = subprocess.run([avdmanager_path, "-v", "delete", "avd", "-n", avd_name], capture_output=True, text=True)
-            if result.returncode == 0:
-                tk.messagebox.showinfo("Success", f"The AVD {avd_name} has been successfully deleted.")
-            else:
-                error_message = result.stderr.strip() if result.stderr else "Unknown error"
-                tk.messagebox.showerror("Error", f"An error occurred: {error_message}. Please make sure that avd is not running!!")
-        except FileNotFoundError:
-            tk.messagebox.showerror("Error", "avdmanager command not found. Make sure Android SDK is installed and added to the system PATH.")
-        except Exception as e:
-            tk.messagebox.showerror("Error", f"An unexpected error occurred: {str(e)} . Please make sure avd is not running!!")
-
-    else:
-        pass 
 
 def read_values_for_apis(filename):
     with open(filename, 'r') as file:
         return [line.strip() for line in file]
     
-def read_values_for_models(filename):
-    with open(filename, 'r') as file:
-        content = file.read()
-        name = content.split('---------\n')
-    return name
-
-def run_install_command(output_text):
-    # Command to install system image
-    command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat --install "system-images;android-29;google_apis_playstore;x86_64"'
-    try:
-        # Start the process
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        # Read and update the output in real-time
-        for line in process.stdout:
-            output_text.insert(tk.END, line.strip() + '\n')
-            output_text.see(tk.END)  # Scroll to the end
-
-        # Wait for the process to finish and get the return code
-        return_code = process.wait()
-
-        # Print the return code
-        print("Return Code:", return_code)
-
-        # If the return code is 0, display a success message and terminate the process
-        if return_code == 0:
-            tkmsgbox.showinfo("Success", "API downloaded successfully! Now creating AVD...")
-            create_avd()
-            process.terminate()  # Terminate the process
-
-        else:
-            # If the return code is non-zero, display an error message
-            tkmsgbox.showerror("Error", f"Command execution failed with return code {return_code}")
-
-    except Exception as e:
-        # Display any exceptions as error messages
-        tkmsgbox.showerror("Error", str(e))
-
-def Install_avds():
-    if not first_combo.get() or not second_combo.get():
-        tkmsgbox.showerror("Error", "Please select an Android API And Android Model!!!")
-        return
-    
-    output_text2 = tk.Text(tab2, wrap=tk.WORD)
-    output_text2.pack(fill=tk.BOTH, expand=True)
-
-    # Create a thread to execute the command
-    install_thread = threading.Thread(target=run_install_command, args=(output_text2,))
-    install_thread.start()
-
 def avd_exists(avd_name):
     try:
         # Check if the AVD exists by listing all AVDs
@@ -202,7 +263,7 @@ def avd_exists(avd_name):
 
 
 def run_create_avd_thread(avd_name, output_text):
-    command = rf'echo no | C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat --verbose create avd --name "android_303" --package "system-images;android-29;google_apis_playstore;x86_64"'
+    command = rf'echo no | C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat --verbose create avd --name "{avd_name}" --package "system-images;android-29;google_apis_playstore;x86_64"'
 
     try:
         # Start the process
@@ -218,73 +279,85 @@ def run_create_avd_thread(avd_name, output_text):
         # Print the return code
         print("Return Code:", return_code)
 
-        # If the return code is 0, display a success message and terminate the process
         if return_code == 0:
             tkmsgbox.showinfo("Success", "AVD created successfully! Now Boot the AVD...")
-            create_avd()
-            process.terminate()  # Terminate the process
+            process.terminate() # Terminate the process
+            save_avd_names_to_file('android_name_list.txt')
+            update_avd_menu()
 
         else:
-            # If the return code is non-zero, display an error message
             output_text.insert(tk.END, f"Error occurred: {process.stdout.read()}\n")
             tkmsgbox.showerror("Error", f"Command execution failed with return code {return_code}")
 
     except Exception as e:
-        # Display any exceptions as error messages
         tkmsgbox.showerror("Error", str(e))
 
 
 
-def create_avd():
-
-    avd_name = "android_303"
-    output_text3 = tk.Text(tab2, wrap=tk.WORD)
-    output_text3.pack(fill=tk.BOTH, expand=True)
-
-    # Check if the AVD already exists
-    if avd_exists(avd_name):
-        tkmsgbox.showerror("Error", f"AVD {avd_name} already exists.")
-        return
-
-    # Create a thread to execute the command
-    create_avd_thread = threading.Thread(target=run_create_avd_thread, args=(avd_name, output_text3))
-    create_avd_thread.start()
+def avd_installed_list_api(avd_name_api):
+    pass
 
 def installation():
     global installation_window
-    installation_window = tb.Window(themename="darkly")
+
+    if installation_window and installation_window.winfo_exists():
+        tkmsgbox.showerror("Error", "Installation process is already running.")
+        return
+
+    installation_window = tb.Toplevel(root)
     installation_window.title("Install New Avds")
     installation_window.geometry('900x500')
     installation_window.resizable(False, False)
 
     # 1 Label
-    first_label = tb.Label(installation_window, text="Please Select Android Api", font=("Helvetica", 14))
+    first_label = tb.Label(installation_window, text="Please Select Android Api", font=("Helvetica", 14), bootstyle="warning")
     first_label.pack(pady=20)
 
-    # Create ComboBox for apis
+    # Create MenuButton for apis
     Android_Api = read_values_for_apis('android_api_list.txt')
-    global first_combo
-    first_combo = tb.Combobox(installation_window, bootstyle="success", width=400 ,values=Android_Api)
-    first_combo.pack(pady=20,padx=20)
+    global avd_name
+    global first_menu_button
+    global item_var_api
+    global avd_name_entry
+
+    #avd_name = avd_name_entry.get()
+    first_menu_button = tb.Menubutton(installation_window, bootstyle="success", text="Select Android API", width=300)
+    first_menu_button.pack(pady=20, padx=20)
+
+    inside_menu = tb.Menu(first_menu_button)
+    item_var_api = StringVar()
+
+    for api in Android_Api:
+        inside_menu.add_radiobutton(label=api, variable=item_var_api, command=lambda api=api: avd_installed_list(api))
+
+    first_menu_button['menu'] = inside_menu
+
     
 
     # 2 Label
-    tb.Label(installation_window, text="Please Select Android Model", font=("Helvetica", 18)).pack(pady=20)
+    tb.Label(installation_window, text="Enter a name  for your avd!!", font=("Helvetica", 18), bootstyle="warning").pack(pady=20)
 
-    # Create ComboBox for models
-    Android_model = read_values_for_models('android_models_list.txt')
-    global second_combo
-    second_combo = tb.Combobox(installation_window, bootstyle="success", values=Android_model, width=70)
-    second_combo.pack(pady=20,padx=20)
+    # Create entry for name of avd
+    avd_name_entry = tb.Entry(installation_window, bootstyle="secondary", font=("Helvetica", 10), foreground="white", background="grey")
+    avd_name_entry.pack(pady=20,padx=20)
+    avd_name = avd_name_entry.get()
 
     # Install Button
-    tb.Button(installation_window, text="Install", bootstyle="danger", command=Install_avds).pack(pady=20)
+    tb.Button(installation_window, text="Install", bootstyle="success", command=Install_avds).pack(pady=20)
+
+def on_closing():
+    global installation_window
+    if tkmsgbox.askokcancel("Quit", "Are you sure you want to quit?"):
+        if installation_window:  # Check if installation_window exists
+            installation_window.destroy()  # Close the installation window if it exists
+        root.destroy()
 
 def on_fast_boot_var_change(*args):
     if fast_boot_var.get() == 0:
         fast_boot_check.config(text="Cold Boot")
     else:
         fast_boot_check.config(text="Fast Boot")
+
 
 root = tb.Window(themename="darkly")
 root.title("Kal-Droid")
@@ -320,14 +393,22 @@ background_label.place(relwidth=1, relheight=1)
 tb.Label(tab1, text="Kal-Droid", bootstyle="success", font=("Helvetica", 28)).pack(pady=10)
 
 # Menu for selecting Avds
+global item_var_menu
 avd_menu = tb.Menubutton(tab1, bootstyle="warning", text="Select Avd",width=30)
 avd_menu.pack(side="left", padx=(65, 20), pady=(0, 450))
 
 inside_menu = tb.Menu(avd_menu)
 
-item_var = StringVar()
-for x in ['android_29', 'secondary', 'danger']:
-    inside_menu.add_radiobutton(label=x, variable=item_var, command=lambda x=x: avd_installed_list(x))
+item_var_menu = StringVar()
+
+# Read AVD names from the file
+with open('android_name_list.txt', 'r') as file:
+    avd_names = file.readlines()
+
+avd_names = [name.strip() for name in avd_names]
+
+for avd_name in avd_names:
+    inside_menu.add_radiobutton(label=avd_name, variable=item_var_menu, command=lambda avd_name=avd_name: avd_installed_list(avd_name))
 
 avd_menu['menu'] = inside_menu
 
@@ -367,4 +448,8 @@ background_label2.place(relwidth=1, relheight=1)
 ## Install Button
 tb.Button(tab2, text="Install", bootstyle="success", command=installation).pack(pady=20)
 
+
+#save_avd_names_to_file('android_name_list.txt')
+root.protocol("WM_DELETE_WINDOW", on_closing)
 root.mainloop()
+
