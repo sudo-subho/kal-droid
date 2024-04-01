@@ -39,6 +39,70 @@ base_dir_root = rf'C:\Users\subho\Documents\programming\projects\AndroLab\rootAV
 
 ## General function here ----------------->
 
+def run_api_listing(command, output_file):
+    try:
+        # Run the command and capture the output
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        # Check if the command executed successfully
+        if result.returncode == 0:
+            # Write the raw output to the specified file
+            with open(output_file, 'w') as file:
+                file.write(result.stdout)
+            #print(f"Raw output saved to '{output_file}' successfully.")
+        else:
+            print("Error: Command execution failed.")
+            if result.stderr:
+                print("Error message:", result.stderr)
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+def filter_system_images(input_file, output_file):
+    try:
+        # Read the raw output from the input file
+        with open(input_file, 'r') as file:
+            raw_output = file.read()
+
+        # Regular expression pattern to match system image paths
+        pattern = r'system-images;android-(\d+);(google_apis(?:_playstore)?|default);(x86_64?|x86).+' 
+
+        # Find all matches of the pattern in the raw output
+        matches = re.findall(pattern, raw_output)
+
+        # Use a set to store unique system images
+        unique_system_images = set()
+        for match in matches:
+            api_level = match[0]
+            api_type = match[1]
+            arch = match[2]
+            system_image = f'system-images;android-{api_level};{api_type};{arch}'
+            unique_system_images.add(system_image)
+
+        # Write the unique system images to the specified output file
+        with open(output_file, 'w') as file:
+            for path in sorted(unique_system_images):
+                file.write(path + '\n')
+
+        #print(f"Filtered system images saved to '{output_file}' successfully.")
+    except FileNotFoundError:
+        print(f"Error: File '{input_file}' not found.")
+    except Exception as e:
+        print("An error occurred:", str(e))
+
+def api_listing():
+    # Define the command to be executed
+    command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat --list'
+
+    # Specify the output files
+    raw_output_file = 'raw_output.txt'
+    filtered_output_file = 'android_api_list.txt'
+
+    # Run the command to generate the raw output
+    run_api_listing(command, raw_output_file)
+
+    # Filter the raw output to get only the relevant system images
+    filter_system_images(raw_output_file, filtered_output_file)
+
 def avd_installed_list(x):
     pass
 
@@ -84,7 +148,7 @@ def save_avd_names_to_file(filename):
             with open(filename, 'w') as file:
                 for name in avd_names:
                     file.write(name + '\n')
-            print(f"AVD names saved to '{filename}' successfully.")
+            #print(f"AVD names saved to '{filename}' successfully.")
         else:
             print("Error: Failed to retrieve AVD list.")
             if result.stderr:
@@ -197,7 +261,7 @@ def Boot_avds(): # Booting the selected avd
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     process_started_boot = True
-    print("Process started:", process_started_boot)
+    #print("Process started:", process_started_boot)
 
     emulator_process = psutil.Process(process.pid)
 
@@ -251,8 +315,9 @@ def avd_exists(avd_name):
         return False
 
 def run_create_avd_thread(avd_name, output_text):
+    api_get = item_var_api.get()
     global process_started_install_avd
-    command = rf'echo no | C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat --verbose create avd --name "{avd_name}" --package "system-images;android-29;google_apis_playstore;x86_64"'
+    command = rf'echo no | C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat --verbose create avd --name "{avd_name}" --package "{api_get}"'
 
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -264,7 +329,7 @@ def run_create_avd_thread(avd_name, output_text):
 
         return_code = process.wait()
 
-        print("Return Code:", return_code)
+        #print("Return Code:", return_code)
 
         if return_code == 0:
             tkmsgbox.showinfo("Success", "AVD created successfully! Now Boot the AVD...")
@@ -307,7 +372,7 @@ def run_install_api_thread(output_text, avd_name):
 
         return_code = process.wait()
 
-        print("Return Code:", return_code)
+        #print("Return Code:", return_code)
 
         if return_code == 0:
             tkmsgbox.showinfo("Success", "API downloaded successfully! Now creating AVD...")
@@ -345,12 +410,18 @@ def Install_avds():
     install_thread.start()
     installation_window.withdraw()
 
+def validate_input(new_value):
+    allowed_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_')
+    return all(char in allowed_chars for char in new_value)
+
 def installation():
     global installation_window
 
     if installation_window and installation_window.winfo_exists():
         tkmsgbox.showerror("Error", "Installation process is already running.")
         return
+
+    api_listing()
 
     installation_window = tb.Toplevel(root)
     installation_window.title("Install New Avds")
@@ -382,10 +453,12 @@ def installation():
     # 2 Label
     tb.Label(installation_window, text="Enter a name  for your avd!!", font=("Helvetica", 18), bootstyle="warning").pack(pady=20)
 
+    tb.Label(installation_window, text="only (a-z, A-Z, 0-9, -_) character are allowed!!!", font=("Helvetica", 10), bootstyle="danger").pack(pady=20)
+
     # Create entry for name of avd
     avd_name_entry = tb.Entry(installation_window, bootstyle="secondary", font=("Helvetica", 10), foreground="white", background="grey")
     avd_name_entry.pack(pady=20,padx=20)
-    avd_name = avd_name_entry.get()
+    avd_name_entry.config(validate="key", validatecommand=(avd_name_entry.register(validate_input), '%P'))
 
     # Install Button
     tb.Button(installation_window, text="Install", bootstyle="success", command=Install_avds).pack(pady=20)
@@ -416,9 +489,9 @@ def run_api_root(command, output_file):
             # Write the ramdisk paths to the specified file
             with open(output_file, 'w') as file:
                 file.write('\n'.join(ramdisk_paths))
-            print(f"Ramdisk paths saved to '{output_file}' successfully.")
+            #print(f"Ramdisk paths saved to '{output_file}' successfully.")
         else:
-            print("Error: Command execution failed.")
+            #print("Error: Command execution failed.")
             if result.stderr:
                 print("Error message:", result.stderr)
     except Exception as e:
