@@ -9,8 +9,8 @@ Root your virtual devices and unlock their full potential. Customize and experim
 Experience the freedom of our Android emulator today. Download now and dive into Android development confidently!
 
 # How to install
-## Windows :-
-
+## Windows :- 
+###### Method 1 (windows setup file)
 
 ## Linux :-
 
