@@ -6,11 +6,43 @@ import ttkbootstrap as tb
 import subprocess
 import re
 import threading
+import sys
 import psutil
 from PIL import Image, ImageTk
 import os
 import webbrowser
 
+
+def resource_path(relative_path):
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS2
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+# Paths of command, tools and images 
+
+base_dir_android_sdk = resource_path(rf'android_sdk')
+base_dir_root = resource_path(rf'android_sdk\system-images')
+base_dir_sdkmanager = resource_path(rf'android_sdk\cmdline-tools\latest\bin\sdkmanager.bat')
+base_dir_avdmanager = resource_path(rf'android_sdk\cmdline-tools\latest\bin\avdmanager.bat')
+base_dir_image = resource_path(rf'assets\img')
+base_dir_rootAvd = resource_path(rf'rootAVD\rootAVD.bat')
+base_dir_emulator = resource_path(rf'android_sdk\emulator\emulator.exe')
+base_dir_txt = resource_path(rf'assets\txt')
+
+
+
+
+#base_dir_root = rf'C:\Users\subho\Documents\programming\projects\AndroLab\android_sdk\system-images'
+#base_dir_sdkmanager = rf'C:\Users\subho\Documents\programming\projects\AndroLab\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat'
+#base_dir_avdmanager = rf'C:\Users\subho\Documents\programming\projects\AndroLab\android_sdk\cmdline-tools\latest\bin\avdmanager.bat'
+#base_dir_image = rf'C:\Users\subho\Documents\programming\projects\AndroLab\assets\img'
+#base_dir_rootAvd = rf'C:\Users\subho\Documents\programming\projects\AndroLab\rootAVD\rootAVD.bat'
+#base_dir_emulator = rf'C:\Users\subho\Documents\programming\projects\AndroLab\android_sdk\emulator\emulator.exe'
+#base_dir_txt = rf'C:\Users\subho\Documents\programming\projects\AndroLab\assets\txt'
 
 # Global variables
 process = None
@@ -29,37 +61,69 @@ first_menu_button_root = None
 item_var_root = None
 first_menu_button_root = None
 root_window = None
+android_name_list = rf'{base_dir_txt}\android_name_list.txt'
 
-# Paths of command, tools and images 
-base_dir_root = rf'C:\Users\subho\Documents\android_sdk\system-images'
-base_dir_sdkmanager = rf'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat'
-base_dir_avdmanager = rf'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat'
-base_dir_image = rf'C:\Users\subho\Documents\programming\projects\AndroLab\assets\img'
-base_dir_root = rf'C:\Users\subho\Documents\programming\projects\AndroLab\rootAVD\rootAVD.bat'
 
 ## General function here ----------------->
 
-def run_api_listing(command, output_file):
-    try:
-        # Run the command and capture the output
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-
-        # Check if the command executed successfully
-        if result.returncode == 0:
-            # Write the raw output to the specified file
-            with open(output_file, 'w') as file:
-                file.write(result.stdout)
-            #print(f"Raw output saved to '{output_file}' successfully.")
+def check_and_set_android_home():
+    # Check if the ANDROID_HOME environment variable is present
+    android_home = os.getenv("ANDROID_HOME")
+    if android_home:
+        print("ANDROID_HOME is already set.")
+        # Check if the path is correct
+        if android_home != base_dir_android_sdk:
+            print("ANDROID_HOME path is incorrect. Setting the correct path...")
+            os.environ["ANDROID_HOME"] = base_dir_android_sdk
+            print("ANDROID_HOME path has been updated.")
         else:
-            print("Error: Command execution failed.")
-            if result.stderr:
-                print("Error message:", result.stderr)
-    except Exception as e:
-        print("An error occurred:", str(e))
+            print("ANDROID_HOME path is correct.")
+    else:
+        print("ANDROID_HOME is not set. Setting the path...")
+        os.environ["ANDROID_HOME"] = base_dir_android_sdk
+        print("ANDROID_HOME has been set.")
 
-def filter_system_images(input_file, output_file):
+def check_and_set_android_home_thread():
+    # Create a thread to run the function
+    android_home_thread = threading.Thread(target=check_and_set_android_home)
+    # Start the thread
+    android_home_thread.start()
+    # Wait for the thread to finish
+    android_home_thread.join()
+    print("Thread execution complete.")
+
+
+def run_api_listing():
+    command = rf'{base_dir_sdkmanager} --list'
+    output_file = rf'{base_dir_txt}\raw_output.txt'
+
+    def execute_command():
+        try:
+            # Run the command and capture the output
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+            # Check if the command executed successfully
+            if result.returncode == 0:
+                # Write the raw output to the specified file
+                with open(output_file, 'w') as file:
+                    file.write(result.stdout)
+                print(f"Raw output saved to '{output_file}' successfully.")
+            else:
+                print("Error: Command execution failed.")
+                if result.stderr:
+                    print("Error message:", result.stderr)
+        except Exception as e:
+            print("An error occurred:", str(e))
+
+    command_thread = threading.Thread(target=execute_command)
+
+    command_thread.start()
+
+def filter_system_images():
+
+    input_file = rf'{base_dir_txt}\raw_output.txt'
+    output_file = rf'{base_dir_txt}\android_api_list.txt'
     try:
-        # Read the raw output from the input file
         with open(input_file, 'r') as file:
             raw_output = file.read()
 
@@ -83,25 +147,11 @@ def filter_system_images(input_file, output_file):
             for path in sorted(unique_system_images):
                 file.write(path + '\n')
 
-        #print(f"Filtered system images saved to '{output_file}' successfully.")
+        print(f"Filtered system images saved to '{output_file}' successfully.")
     except FileNotFoundError:
         print(f"Error: File '{input_file}' not found.")
     except Exception as e:
         print("An error occurred:", str(e))
-
-def api_listing():
-    # Define the command to be executed
-    command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat --list'
-
-    # Specify the output files
-    raw_output_file = 'raw_output.txt'
-    filtered_output_file = 'android_api_list.txt'
-
-    # Run the command to generate the raw output
-    run_api_listing(command, raw_output_file)
-
-    # Filter the raw output to get only the relevant system images
-    filter_system_images(raw_output_file, filtered_output_file)
 
 def avd_installed_list(x):
     pass
@@ -131,7 +181,7 @@ def on_closing():
         root.destroy()
 
 def save_avd_names_to_file(filename):
-    command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat list avd'
+    command = rf'{base_dir_avdmanager} list avd'
     try:
         # Run the command and capture the output
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -161,7 +211,8 @@ def update_avd_menu():
     inside_menu.delete(0, tk.END)
 
     # Read AVD names from the updated file
-    with open('android_name_list.txt', 'r') as file:
+
+    with open(android_name_list, 'r') as file:
         avd_names = file.readlines()
 
     avd_names = [name.strip() for name in avd_names]
@@ -212,12 +263,11 @@ def delete_avd(): # deleting the selected avd (delete button)
     confirmed = tkmsgbox.askyesno("Confirmation", "Are you sure you want to delete the AVD?")
     if confirmed:
         avd_name = item_var_menu.get()
-        avdmanager_path = r'C:\Users\subho\\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat'
         try:
-            result = subprocess.run([avdmanager_path, "-v", "delete", "avd", "-n", avd_name], capture_output=True, text=True)
+            result = subprocess.run([base_dir_avdmanager, "-v", "delete", "avd", "-n", avd_name], capture_output=True, text=True)
             if result.returncode == 0:
                 tkmsgbox.showinfo("Success", f"The AVD {avd_name} has been successfully deleted.")
-                save_avd_names_to_file('android_name_list.txt')
+                save_avd_names_to_file(android_name_list)
                 update_avd_menu()
             else:
                 error_message = result.stderr.strip() if result.stderr else "Unknown error"
@@ -254,9 +304,9 @@ def Boot_avds(): # Booting the selected avd
         return
 
     if fast_boot_var.get() == 1:
-        command = rf'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd {avd_to_boot} -writable-system'
+        command = rf'{base_dir_emulator} -avd {avd_to_boot} -writable-system'
     else:
-        command = rf'C:\Users\subho\Documents\android_sdk\emulator\emulator.exe -avd {avd_to_boot} -writable-system -no-snapshot-load'
+        command = rf'{base_dir_emulator} -avd {avd_to_boot} -writable-system -no-snapshot-load'
 
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -284,6 +334,25 @@ def Boot_avds(): # Booting the selected avd
 
 ## (Tab-2) Install android Api, creating avd > functions here ----------------->
     
+def uninstall_system_image():
+
+    sys_img = item_var_api_delete.get()
+    print(sys_img)
+    try:
+        # Run the sdkmanager.bat command to uninstall the system image
+        result = subprocess.run([base_dir_sdkmanager, "--uninstall", sys_img], capture_output=True, text=True)
+        if result.returncode == 0:
+            tk.messagebox.showinfo("Success", "System image uninstalled successfully!")
+            delete_api_window.destroy()
+            save_avd_names_to_file(android_name_list)
+            update_avd_menu()
+        else:
+            tk.messagebox.showerror("Error", "Failed to uninstall system image. Please check logs for details.")
+            delete_api_window.destroy()
+    except Exception as e:
+        tk.messagebox.showerror("Error", f"An error occurred: {str(e)}")
+        delete_api_window.destroy()
+    
 def redraw_tab2(): # Re-rendering the tab 2 ()
     for widget in tab2.winfo_children(): # Clear the current contents of tab2
         widget.destroy()
@@ -296,14 +365,47 @@ def redraw_tab2(): # Re-rendering the tab 2 ()
         background_label2.place(relx=0, rely=0, relwidth=1, relheight=1) 
     except Exception as e:
         print("Error:", e)
+        
+    ## Install Button
+    install_button = tb.Button(tab2, text="Install", bootstyle="success", command=installation)
+    install_button.pack(pady=20)
+    install_button.place(x=350, y=20)
 
-    # Install Button
-    tb.Button(tab2, text="Install", bootstyle="success", command=installation).pack(pady=20)
+    # Delete Api Button
+    Delete_api_button = tb.Button(tab2, text="Delete api", bootstyle="danger", command=delete_api)
+    Delete_api_button.pack(pady=20)
+    Delete_api_button.place(x=430, y=20)
+
+def run_installed_api_list():
+    # Run the sdkmanager.bat command and capture its output
+    result = subprocess.run([base_dir_sdkmanager, "--list_installed"], capture_output=True, text=True)
+    output_lines = result.stdout.split('\n')
+
+    # Filter out lines containing "system-images" and extract the desired part
+    system_images = [line.split('|')[0].strip() for line in output_lines if "system-images" in line]
+
+    global save_installed_api
+    save_installed_api = rf'{base_dir_txt}/installed_api_list.txt'
+
+    # Save the system images to a file
+    with open(save_installed_api, "w") as f:
+        for line in system_images:
+            f.write(line + '\n')
+    print("System images saved to installed_api_list.txt")
+
+def api_delete_list():
+    # Create a thread to run the function
+    sdk_manager_thread = threading.Thread(target=run_installed_api_list)
+    # Start the thread
+    sdk_manager_thread.start()
+    # Wait for the thread to finish
+    sdk_manager_thread.join()
+    print("Thread execution complete.")
 
 def avd_exists(avd_name):
     try:
         # Check if the AVD exists by listing all AVDs
-        list_command = r'C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat list avd'
+        list_command = rf'{base_dir_avdmanager} list avd'
         result = subprocess.run(list_command, shell=True, capture_output=True, text=True)
         if avd_name in result.stdout:
             return True
@@ -317,7 +419,7 @@ def avd_exists(avd_name):
 def run_create_avd_thread(avd_name, output_text):
     api_get = item_var_api.get()
     global process_started_install_avd
-    command = rf'echo no | C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\avdmanager.bat --verbose create avd --name "{avd_name}" --package "{api_get}"'
+    command = rf'echo no | {base_dir_avdmanager} --verbose create avd --name "{avd_name}" --package "{api_get}"'
 
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -335,7 +437,7 @@ def run_create_avd_thread(avd_name, output_text):
             tkmsgbox.showinfo("Success", "AVD created successfully! Now Boot the AVD...")
             process.terminate()
             process_started_install_avd = False 
-            save_avd_names_to_file('android_name_list.txt')
+            save_avd_names_to_file(android_name_list)
             update_avd_menu()
             installation_window.destroy()
             output_text.delete(1.0, tk.END)
@@ -361,7 +463,8 @@ def run_install_api_thread(output_text, avd_name):
     global process_started_install_api
 
     and_api = item_var_api.get()
-    command = rf'echo y | C:\Users\subho\Documents\android_sdk\cmdline-tools\latest\bin\sdkmanager.bat --install "{and_api}"'
+    command = rf'echo y | {base_dir_sdkmanager} --install "{and_api}"'
+
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         process_started_install_api = True
@@ -393,7 +496,7 @@ def Install_avds():
     avd_name = avd_name_entry.get() 
 
     if not item_var_api.get() or not avd_name_entry.get():
-        tkmsgbox.showerror("Error", "Please select an Android API And Android Model!!!")
+        tkmsgbox.showerror("Error", "Please select an Android API And Give a name")
         return
     
     if avd_exists(avd_name):
@@ -421,7 +524,7 @@ def installation():
         tkmsgbox.showerror("Error", "Installation process is already running.")
         return
 
-    api_listing()
+    filter_system_images()
 
     installation_window = tb.Toplevel(root)
     installation_window.title("Install New Avds")
@@ -433,7 +536,8 @@ def installation():
     first_label.pack(pady=20)
 
     # Create MenuButton for apis
-    Android_Api = read_values_for_apis('android_api_list.txt')
+    and_api_list = rf'{base_dir_txt}\android_api_list.txt'
+    Android_Api = read_values_for_apis(and_api_list)
     global avd_name
     global first_menu_button
     global item_var_api
@@ -462,6 +566,56 @@ def installation():
 
     # Install Button
     tb.Button(installation_window, text="Install", bootstyle="success", command=Install_avds).pack(pady=20)
+
+def delete_api_now():
+    if not item_var_api_delete.get():
+        tkmsgbox.showerror("Error", "Please select an Android Api To Delete!!!")
+        return
+    
+    uninstall_thread = threading.Thread(target=uninstall_system_image)
+    uninstall_thread.start()
+
+def delete_api():
+
+    api_delete_list()
+    global delete_menu_button
+    global item_var_api_delete
+    global delete_api_window
+
+    delete_api_window = tb.Toplevel(root)
+    delete_api_window.title("Delete Installed Apis")
+    delete_api_window.geometry('900x500')
+    delete_api_window.resizable(False, False)
+
+    # 1 Label
+    first_label = tb.Label(delete_api_window, text="Please Select Android Api To Delete", font=("Helvetica", 14), bootstyle="warning")
+    first_label.pack(pady=20)
+
+    delete_menu_button = tb.Menubutton(delete_api_window, bootstyle="success", text="Select Android API", width=300)
+    delete_menu_button.pack(pady=20, padx=20)
+
+    Android_Api = read_values_for_apis(save_installed_api)
+
+    inside_menu = tb.Menu(delete_menu_button)
+    item_var_api_delete = StringVar()
+
+    for api_delete in Android_Api:
+        inside_menu.add_radiobutton(label=api_delete, variable=item_var_api_delete, command=lambda api_delete=api_delete: avd_installed_list(api_delete))
+
+    delete_menu_button['menu'] = inside_menu
+
+    Delete_api_button2 = tb.Button(delete_api_window, text="Delete", bootstyle="danger", command=delete_api_now)
+    Delete_api_button2.pack(pady=20)
+
+    war_label_delete = tb.Label(delete_api_window, text="Warning", font=("Helvetica", 16), bootstyle="warning")
+    war_label_delete.pack(pady=20)
+
+    war_label_delete2 = tb.Label(delete_api_window, text="Please Note that if your deleteing an api that is used by a avd.", font=("Helvetica", 10), bootstyle="warning")
+    war_label_delete2.pack(pady=0)
+
+    war_label_delete3 = tb.Label(delete_api_window, text="The Avd will not boot so kindly delete the avd also.", font=("Helvetica", 10), bootstyle="warning")
+    war_label_delete3.pack(pady=20)
+
     
 # Root tab function ------------>
     
@@ -489,9 +643,9 @@ def run_api_root(command, output_file):
             # Write the ramdisk paths to the specified file
             with open(output_file, 'w') as file:
                 file.write('\n'.join(ramdisk_paths))
-            #print(f"Ramdisk paths saved to '{output_file}' successfully.")
+            print(f"Ramdisk paths saved to '{output_file}' successfully.")
         else:
-            #print("Error: Command execution failed.")
+            print("Error: Command execution failed.")
             if result.stderr:
                 print("Error message:", result.stderr)
     except Exception as e:
@@ -499,10 +653,10 @@ def run_api_root(command, output_file):
 
 def api_root_list():
     # Define the command to be executed
-    command = rf'{base_dir_root} ListAllAVDs'
+    command = rf'{base_dir_rootAvd} ListAllAVDs'
 
     # Specify the output file
-    output_file = 'api_root.txt'
+    output_file = rf'{base_dir_txt}\api_root.txt'
 
     # Create a thread to run the command
     command_thread = threading.Thread(target=run_api_root, args=(command, output_file))
@@ -574,7 +728,7 @@ def avd_root_now():
     
     AvdToRoot = item_var_root.get()
     # Define the command to be executed
-    command = rf'C:\Users\subho\Documents\programming\projects\AndroLab\rootAVD\rootAVD.bat {AvdToRoot}'
+    command = rf'{base_dir_rootAvd} {AvdToRoot}'
 
 
     # Create a frame to hold the text widget
@@ -600,7 +754,7 @@ def root_avd():
 
     api_root_list()
 
-    Android_root = read_values_for_apis('api_root.txt')
+    Android_root = read_values_for_apis(rf'{base_dir_txt}\api_root.txt')
     
     root_window = tb.Toplevel(root)
     root_window.title("Root New Avds")
@@ -608,7 +762,7 @@ def root_avd():
     root_window.resizable(False, False)
 
     # 1 Label
-    first_label_root = tb.Label(root_window, text="Please Select Avd Acroding to your Api level, Type and Architecture", font=("Helvetica", 14), bootstyle="warning")
+    first_label_root = tb.Label(root_window, text="Please Select Avd According to your Api level, Type and Architecture", font=("Helvetica", 14), bootstyle="warning")
     first_label_root.pack(pady=20)
 
 
@@ -666,7 +820,11 @@ notebook.pack(expand=True, fill="both")
 # Tab 1 ----------->
 
 ## Bg Img
-background_img = ImageTk.PhotoImage(Image.open(rf"{base_dir_image}\bg.png")) 
+
+bg_image_path = resource_path("assets/img/bg.png")
+#background_img = Image.open(bg_image_path)
+#background_img = ImageTk.PhotoImage(Image.open(rf"{base_dir_image}\bg.png"))
+background_img = ImageTk.PhotoImage(Image.open(bg_image_path)) 
 background_label = Label(tab1, image=background_img)
 background_label.place(relwidth=1, relheight=1)
 
@@ -683,7 +841,7 @@ inside_menu = tb.Menu(avd_menu)
 item_var_menu = StringVar()
 
 # Read AVD names from the file
-with open('android_name_list.txt', 'r') as file:
+with open(android_name_list, 'r') as file:
     avd_names = file.readlines()
 
 avd_names = [name.strip() for name in avd_names]
@@ -722,15 +880,24 @@ show_logs_check.place(x=300,y=190)
 # Tab 2 ----------->
 
 # Bg Img
-background_img2 = ImageTk.PhotoImage(Image.open(rf"{base_dir_image}\bg2.png")) 
+bg_image_path2 = resource_path("assets/img/bg2.png")
+background_img2 = ImageTk.PhotoImage(Image.open(bg_image_path2)) 
 background_label2 = Label(tab2, image=background_img2)
 background_label2.place(relwidth=1, relheight=1)
 
 ## Install Button
-install_button = tb.Button(tab2, text="Install", bootstyle="success", command=installation).pack(pady=20)
+install_button = tb.Button(tab2, text="Install", bootstyle="success", command=installation)
+install_button.pack(pady=20)
+install_button.place(x=350, y=20)
+
+# Delete Api Button
+Delete_api_button = tb.Button(tab2, text="Delete api", bootstyle="danger", command=delete_api)
+Delete_api_button.pack(pady=20)
+Delete_api_button.place(x=430, y=20)
 
 # Tab 3 ----------->
-background_img3 = ImageTk.PhotoImage(Image.open(rf"{base_dir_image}\bg3.png")) 
+bg_image_path3 = resource_path("assets/img/bg3.png")
+background_img3 = ImageTk.PhotoImage(Image.open(bg_image_path3)) 
 background_label3 = Label(tab3, image=background_img3)
 background_label3.place(relwidth=1, relheight=1)
 
@@ -738,7 +905,9 @@ background_label3.place(relwidth=1, relheight=1)
 root_button = tb.Button(tab3, text="Root Avd", bootstyle="danger", command=root_avd).pack(pady=20)
 
 # Tab 4 ----------->
-background_img4 = ImageTk.PhotoImage(Image.open(rf"{base_dir_image}\andro.png")) 
+
+bg_image_path4 = resource_path("assets/img/andro.png")
+background_img4 = ImageTk.PhotoImage(Image.open(bg_image_path4)) 
 background_label4 = Label(tab4, image=background_img4)
 background_label4.place(relwidth=1, relheight=1)
 
@@ -785,7 +954,11 @@ linkedin.place(x=580, y=450)
 
 Email = tb.Button(tab4, text="Email", bootstyle="info", command=lambda: open_website("subhodeepbaroi2@gmail.com"))
 Email.pack()
-Email.place(x=425, y=500)
+Email.place(x=425, y=520)
+
+
+check_and_set_android_home_thread()
+run_api_listing()
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
 root.mainloop()
