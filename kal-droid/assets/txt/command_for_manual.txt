@@ -1,0 +1,9 @@
+.\sdkmanager.bat --list
+.\sdkmanager.bat --install "system-images;android-29;google_apis_playstore;x86_64"
+.\sdkmanager.bat --list_installed
+.\avdmanager.bat --list devices
+.\avdmanager.bat create avd -k "system-images;android-29;google_apis_playstore;x86_64" -n "android_29"
+.\avdmanager.bat list avd
+android_sdk\emulator\emulator.exe -list-avds
+
+./enulator.exe -avd android_29 -writeable-system
