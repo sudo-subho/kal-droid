@@ -17,7 +17,7 @@ First [Download](https://github.com/sudo-subho/kal-droid/releases/download/kal-d
 
 Second Set a environment variables named ```ANDROID_HOME``` path to ```C:\Users\[username]\Kal-Droid\android_sdk```
 
-### Method 12 (via python file):
+### Method 2 (via python file):
 
 First [download](https://www.python.org/downloads/) Python-3 on your PC.
 
@@ -40,7 +40,7 @@ Go To ```Install Avd``` Tab.
 
 ##### Step 2
 
-Click ```Install``` Button. A New Will Pop up
+Click ```Install``` Button. A New Window Pop up
 ![alt text](screenshorts/install_avds2.png)
 
 ##### Step 3
