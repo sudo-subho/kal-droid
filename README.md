@@ -31,7 +31,7 @@ Third, open a PowerShell. ```cd kal-droid``` and ```pip install -r requirements.
 
 Coming soon.....
 
-# How To Use:-
+# How To Install a AVD:-
 
 ##### Step 1
 
@@ -62,7 +62,10 @@ Now Your ```AVD``` is ready to Boot.
 
 # How To Boot:-
 
-##### Step 1
+Go To ```Boot Avd``` Tab. After that Select Your ```Avd Name``` and Click ```Boot``` Button. 
+![alt text](screenshorts/boot_avd.png)
 
+To Stop The ```AVD``` Click ```Stop``` Button.
+![alt text](screenshorts/stop_avd.png)
 
-
+# How To Root a Avd:-
