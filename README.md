@@ -13,19 +13,19 @@ Whether you're a seasoned developer or just getting started, our Android emulato
 
 ### Method 1 (via Windows setup file):
 
-First [Download](https://github.com/sudo-subho/kal-droid/releases/download/kal-droid-2.1/Kal-Droid_2.0_X64_WINDOWS_Setup.exe) the setup file. and install
+1-First [Download](https://github.com/sudo-subho/kal-droid/releases/download/kal-droid-2.1/Kal-Droid_2.0_X64_WINDOWS_Setup.exe) the setup file. and install
 
-Second Set a environment variables named ```ANDROID_HOME``` path to ```C:\Users\[username]\Kal-Droid\android_sdk```
+2-Second Set a environment variables named ```ANDROID_HOME``` path to ```C:\Users\[username]\Kal-Droid\android_sdk```
 
 ### Method 2 (via python file):
 
-First [download](https://www.python.org/downloads/) Python-3 on your PC.
+1-First [download](https://www.python.org/downloads/) Python-3 on your PC.
 
-Second [Download](https://github.com/sudo-subho/kal-droid/releases/download/kal-droid-2.1/kal-droid.zip) The Zip File and unzip it.
+2-Second [Download](https://github.com/sudo-subho/kal-droid/releases/download/kal-droid-2.1/kal-droid.zip) The Zip File and unzip it.
 
-Third set an environment variable named ```ANDROID_HOME``` path to your unzip folder after that  ```\android_sdk```. For example ```C:\Users\[username]\Kal-Droid\android_sdk```
+3-Third set an environment variable named ```ANDROID_HOME``` path to your unzip folder after that  ```\android_sdk```. For example ```C:\Users\[username]\Kal-Droid\android_sdk```
 
-Third, open a PowerShell. ```cd kal-droid``` and ```pip install -r requirements.txt```. After that run the ```main.py``` file ```python3 main.py```
+4-Fourth, open a PowerShell. ```cd kal-droid``` and ```pip install -r requirements.txt```. After that run the ```main.py``` file ```python3 main.py```
 
 # Linux & macOS:
 
@@ -68,4 +68,25 @@ Go To ```Boot Avd``` Tab. After that Select Your ```Avd Name``` and Click ```Boo
 To Stop The ```AVD``` Click ```Stop``` Button.
 ![alt text](screenshorts/stop_avd.png)
 
-# How To Root a Avd:-
+screenshorts/root_avds.png
+
+##### Warning
+
+1-Please make sure That your API is [compatible](https://github.com/newbit1/rootAVD/blob/master/CompatibilityChart.md) with [RootAvd](https://github.com/newbit1/rootAVD). It only supports ```Google PlayStore System Images```
+
+2-Please make sure that ```ANDROID_HOME``` environment variable is set to correct path.
+
+3-Please make sure that the ```AVD``` is running that you want to root.
+
+##### Step 1
+
+Go To ```Root Avd``` Tab. Click ```Root``` Button. Then a New Window Will Pop up.
+![alt text](screenshorts/root_tabs.png)
+
+##### Step 2
+
+Select Your ```Android Api``` and Click ```Root Button```.
+![alt text](screenshorts/root_avds.png)
+
+# How To Setup Proxy in AVD:
+
