@@ -90,3 +90,23 @@ Select Your ```Android Api``` and Click ```Root Button```.
 
 # How To Setup Proxy in AVD:
 
+##### Step 1
+
+First Boot the ```AVD``` and click ```...```. A New Window Will Pop up then Click on ```Settings```. After that go to ```Proxy``` tab.
+![alt text](screenshorts/proxy_avd.png)
+
+##### Step 2
+
+Uncheck the ```use Android Atudio HTTP proxy settings```. Then Check ```manual proxy configuration``` and then input proxy ```IP``` and ```PORT``` Click ```Apply```. See the ```Proxy Status```.
+![alt text](screenshorts/prxy_Avd2.png)
+
+# How To Uninstall AVD and API:
+
+##### Uninstall AVD
+
+Make sure the AVD is Not running. Select The ```AVD Name``` and Click ```Delete``` Button.
+![alt text](screenshorts/prxy_Avd2.png)
+
+##### Uninstall API
+Make sure the AVD is Not running. Go To ```Install Avd``` Tab and CLick ```Delete``` Button. A new Window Will Pop up.
+![alt text](screenshorts/prxy_Avd2.png)
