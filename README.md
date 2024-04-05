@@ -105,8 +105,12 @@ Uncheck the ```use Android Atudio HTTP proxy settings```. Then Check ```manual p
 ##### Uninstall AVD
 
 Make sure the AVD is Not running. Select The ```AVD Name``` and Click ```Delete``` Button.
-![alt text](screenshorts/prxy_Avd2.png)
+![alt text](screenshorts/delete_avd.png)
 
 ##### Uninstall API
+
 Make sure the AVD is Not running. Go To ```Install Avd``` Tab and CLick ```Delete``` Button. A new Window Will Pop up.
-![alt text](screenshorts/prxy_Avd2.png)
+![alt text](screenshorts/installAvdsTab.png)
+
+Select the ```API``` that you want to root and click ```Delete``` Button. Note!!! after deleting an API some avd will not boot because the avd made with that api.
+![alt text](screenshorts/delete_api.png)
